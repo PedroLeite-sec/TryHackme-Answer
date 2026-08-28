@@ -1,0 +1,41 @@
+Which command line was used to look for the "pass" keyword in files?
+
+Aqui para ser bem sincero é tecnicamente simples ele já deixa especificado que o que estamos procurando é a palavra pass
+então só vamos filtrar por pass 
+ausearch -i -if /home/ubuntu/scenario/audit.log | grep 'pass'
+
+e a resposta vai estar exatamente no resultado dos logs 
+type=PROCTITLE msg=audit(09/23/25 14:53:00.821:2134) : proctitle=find . -name *pass* 
+type=EXECVE msg=audit(09/23/25 14:53:00.821:2134) : argc=4 a0=find a1=. a2=-name a3=*pass* 
+type=PROCTITLE msg=audit(09/23/25 14:53:10.724:2136) : proctitle=grep -iR pass . 
+type=EXECVE msg=audit(09/23/25 14:53:10.724:2136) : argc=4 a0=grep a1=-iR a2=pass a3=. 
+
+grep -iR pass
+
+Which command line was used to escalate privileges to root?
+
+Aqui é tecnicamente simples tambem. Sabemos que no linux uma das muitas maneiras de acessar o root precisamos dar su root
+então quando fomos procurar nesse log podemos procurar exatamente algo que remeta a essa linha de comando ou exatamente essa linha de comando 
+
+root@thm-vm:/home/ubuntu$ ausearch -i -if /home/ubuntu/scenario/audit.log | grep 'root'
+type=PROCTITLE msg=audit(09/23/25 14:53:49.262:2138) : proctitle=su root 
+type=EXECVE msg=audit(09/23/25 14:53:49.262:2138) : argc=2 a0=su a1=root 
+
+como podemos ver logo de cara a resposta está aqui type=PROCTITLE msg=audit(09/23/25 14:53:49.262:2138) : proctitle=su root 
+
+Looking at the detected .env file, what was the root password?
+
+Na task 1 nas explicações por um acaso tem o caminho para a pasta do trypingme então fui procurar nessa pasta se haveri algo, mas antes de ir até a pasta eu procurei o .env dentro do ausearch
+ ausearch -i -if audit.log | grep .env e ele me retornou nas primeiras linhas 
+ type=PROCTITLE msg=audit(09/23/25 14:53:44.238:2137) : proctitle=cat .env.local 
+ com o nome do arquivo eu poderia procurar ele em algum lugar como não tinha muitas ideias fui procurar nos exercicios anteriores se tinha alguma pista de duas umas ou procurando no trypingme no site eu conseguiria algo
+ ou procurando diretamente no diretorio eu fui pela segunda opção então fui ver onde poderia estar investigando nos exercicios anteriores ele já dava o caminho em um dos exemplos que estar
+ /opt/trypingme/.env.local  assim que eu dei o cat a resposta veio após eu terminar de fazer o exercicio cliquei na lampada e ela já dava o caminho para lá 
+
+# Run the app from this user
+# USER=root
+# PASSWORD=nGql1pQkGa
+
+# UPD: The file is no longer used, commented it for now
+
+OBS: Eu to gostando dessa room só não gosto muito da ideia do tryping me exercicio completado no dia 26/08/2026

