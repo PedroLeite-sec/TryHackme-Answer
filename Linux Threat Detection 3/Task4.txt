@@ -1,0 +1,141 @@
+# What flag did you get after running the malware persisting as a service?
+
+Observando o exemplo que estava acima do exercício, ele sugeria um caminho que era `/etc/systemd`. Então, fui até esse caminho para investigar.
+
+O primeiro comando que utilizei foi:
+
+```bash
+ausearch -i -f /etc/systemd
+```
+
+Feito isso, tivemos um resultado de logs, ou seja, já tínhamos meio caminho andado. Logo depois, utilizei o `grep` para procurar mais a fundo os resultados.
+
+Então, utilizei:
+
+```bash
+grep service
+```
+
+Nesse momento, o próprio enunciado já dava uma pista, mas comecei a pensar em como faria essa investigação em um cenário real, onde não existisse um enunciado indicando o que procurar.
+
+Nesse caso, acredito que começaria pelo `PROCTITLE`, pois ele pode mostrar quais comandos foram executados. Essa foi, inclusive, uma das minhas primeiras tentativas antes de utilizar o `grep service`.
+
+Ao utilizar o `grep` para procurar por `service` ou observar os `PROCTITLE`, consegui identificar alguns comandos relacionados à edição de arquivos, como o uso do `nano`. Isso chama bastante atenção, pois indica que naquele caminho houve uma ação de alteração em arquivos.
+
+Além disso, encontrei outro arquivo com a extensão `.service`:
+
+```text
+badr.service
+```
+
+Até esse momento, tínhamos dois arquivos para investigar:
+
+```text
+tux.service
+badr.service
+```
+
+## Investigando o badr.service
+
+Comecei investigando o `badr.service`, onde encontrei algumas informações interessantes:
+
+```text
+ExecStart=/etc/badr/badr --config /etc/badr/rules.yaml --config /etc/badr/room.config.yaml > /var/log/badr.log 2>&1
+
+ExecStartPost=/bin/bash -c 'sleep 10 && rm -f /etc/badr/badr /etc/badr/config.yaml /etc/badr/rules.yaml /etc/badr/room.config.yaml'
+```
+
+Depois de dar um `cat` no arquivo `badr.service`, conseguimos observar essas informações.
+
+O `ExecStart` mostra o comando que será executado quando o serviço for iniciado, enquanto o `ExecStartPost` executa outro comando após o início do serviço.
+
+O `ExecStartPost` chamou bastante atenção porque, após aguardar 10 segundos, ele executa `rm -f` para remover alguns arquivos. Em um cenário de investigação, esse comportamento merece atenção, pois pode estar relacionado à tentativa de remover artefatos após a execução.
+
+Depois disso, fiz um `cat` no `tux.service` para entender o que ele apresentava.
+
+## Investigando o tux.service
+
+O `tux.service` não apresentava muitas informações, mas havia uma informação muito importante:
+
+```text
+/var/lib/misc/tux
+```
+
+Esse caminho estava relacionado ao executável que o serviço utilizava.
+
+Então, fui até o diretório `/var/lib`:
+
+```bash
+cd /var/lib
+```
+
+Depois, executei o caminho encontrado dentro do `tux.service`:
+
+```bash
+/var/lib/misc/tux
+```
+
+O programa apresentou a seguinte mensagem:
+
+```text
+=========================================
+Good job finding me! Where did I persist
+Example: /folder/name.service
+=========================================
+Your answer: /etc/systemd/system/tux.service
+THM{hidden_penguin!}
+=========================================
+Press Enter to exit...
+```
+
+A resposta solicitada pela questão era:
+
+```text
+THM{hidden_penguin!}
+```
+
+Além disso, o próprio malware confirmou onde estava persistindo:
+
+```text
+/etc/systemd/system/tux.service
+```
+
+Esse caminho também havia sido identificado anteriormente durante a investigação dos logs.
+
+## Observação sobre a investigação
+
+Gostei bastante do uso do `find` para localizar arquivos `.service`, porém, pensando em um cenário real no qual ainda não sabemos que existe um arquivo `.service suspeito`, acredito que seria mais interessante começar pelos eventos registrados no Audit.
+
+Por exemplo:
+
+```bash
+ausearch -i -if /home/ubuntu/scenario/audit.log | grep -i proctitle
+```
+
+A partir dos `PROCTITLE`, poderíamos observar os comandos executados e identificar alguma atividade relacionada ao `/etc/systemd` ou diretamente a algum arquivo `.service`.
+
+Se encontrássemos algo como:
+
+```text
+proctitle=nano /etc/systemd/system/tux.service
+```
+
+nesse momento já teríamos uma evidência de que o arquivo `tux.service` existe e foi manipulado.
+
+A partir dessa descoberta, poderíamos refinar a investigação utilizando:
+
+```bash
+ausearch -i -if /home/ubuntu/scenario/audit.log | grep -i proctitle | grep -i service
+```
+
+ou utilizar o `find` posteriormente para confirmar os arquivos existentes no filesystem.
+
+A diferença é que o `find` responde principalmente à pergunta:
+
+> "Quais arquivos `.service` existem nesse caminho?"
+
+Enquanto o `ausearch` combinado com `grep` pode ajudar a responder:
+
+> "Quais atividades e comandos relacionados a esses arquivos foram registrados no Audit?"
+
+Por isso, em um cenário sem as pistas fornecidas pelo TryHackMe, eu começaria pelos logs e utilizaria o `find` como uma segunda fonte de evidência para confirmar o que foi encontrado
