@@ -37,5 +37,3 @@ Na task 1 nas explicações por um acaso tem o caminho para a pasta do trypingme
 # PASSWORD=nGql1pQkGa
 
 # UPD: The file is no longer used, commented it for now
-
-OBS: Eu to gostando dessa room só não gosto muito da ideia do tryping me exercicio completado no dia 26/08/2026
