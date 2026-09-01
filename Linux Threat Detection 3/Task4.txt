@@ -138,4 +138,34 @@ Enquanto o `ausearch` combinado com `grep` pode ajudar a responder:
 
 > "Quais atividades e comandos relacionados a esses arquivos foram registrados no Audit?"
 
-Por isso, em um cenário sem as pistas fornecidas pelo TryHackMe, eu começaria pelos logs e utilizaria o `find` como uma segunda fonte de evidência para confirmar o que foi encontrado
+Por isso, em um cenário sem as pistas fornecidas pelo TryHackMe, eu começaria pelos logs e utilizaria o `find` como uma segunda fonte de evidência para confirmar o que foi encontrado.
+
+
+What flag did you get after running the malware persisting as a cron job?
+
+Primeiro eu comecei a procurar por crontab já que no enunciado ele da a dica "cron" por saber que existe um diretorio com nome de crontab eu dei um ausearch nesse crontab
+
+e como resposta eu obtive o seguinte caminho no meio dos logs que é /var/spool/cron
+type=CWD msg=audit(09/23/25 17:07:38.770:837) : cwd=/var/spool/cron 
+dentro desse caminho tem um arquivo que é o crontab eu descrobri esse arquivo usando o comando ls -la 
+
+dando crantab -e 
+
+abre um "bloco de notas" com o caminho /usr/sbin/phoenix
+
+eu apenas passei esse comando e dei enter e abriu a seguinte pergunta 
+
+=========================================
+Good job finding me! Where did I persist
+Example: /folder/cronfile
+=========================================
+Your answer: /var/spool/cron/crontabs/root
+THM{ressurect_on_reboot!}
+=========================================
+Press Enter to exit...
+
+Onde eu persisti e ele persistiu no caminho crontabs/root 
+
+quando damos ls -la aparece a seguites opções  drwx-wx--T 2 root crontab 4096 Sep 23  2025 crontabs
+
+para investigar melhor eu atendrei na pasta crontabs e listei o que tinha dentro dela e verifiquei o usuário root vale ressaltar que cada usuário possui a pasta crontab
