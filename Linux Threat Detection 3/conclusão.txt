@@ -1,0 +1,15 @@
+## Considerações Finais
+
+Essa room foi muito importante para o meu aprendizado, pois me apresentou alguns conceitos novos e também aprimorou conhecimentos que eu já possuía.
+
+Um dos maiores exemplos foi o `ausearch`, comando que utilizei bastante desde o início do módulo de Linux. No entanto, essa sala me mostrou ainda melhor como utilizar esse comando durante uma investigação e como aproveitar informações importantes presentes nos logs, como `PID`, `PPID`, `UID`, `PROCTITLE` e `EXECVE`.
+
+Também foram apresentados conceitos importantes sobre como um atacante pode manter a persistência no sistema, mesmo após uma reinicialização, utilizando mecanismos como o `cron` e serviços do `systemd`.
+
+Além disso, a room mostrou como funciona a escalação de privilégios até chegar ao usuário `root`, como identificar arquivos modificados para permitir persistência por meio de chaves SSH e como verificar qual usuário foi criado e a qual grupo ele foi adicionado.
+
+São conceitos que, à primeira vista, podem parecer simples, mas possuem extrema importância e são fundamentais para fortalecer o entendimento sobre investigações e ataques em ambientes Linux.
+
+Essa room também me ajudou a desenvolver melhor meu raciocínio durante uma investigação. Em vez de apenas procurar diretamente uma resposta, comecei a entender a importância de seguir as evidências encontradas nos logs e utilizá-las para chegar ao próximo artefato.
+
+Caso você tenha curiosidade em saber como resolvi cada questão e qual foi o meu raciocínio durante as investigações, todas as Tasks solucionadas estão documentadas na pasta correspondente.
