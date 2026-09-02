@@ -1,0 +1,19 @@
+Which user was created and added to the sudo group?
+
+Essa sala é bem simples nessa questão eu apenas dei um cat nos logs de autorização  dando grep em palavras chaves como useradd|usermod
+
+cat /var/log/auth.log | grep -E 'useradd|usermod'
+
+2025-09-23T17:08:57.070626+00:00 thm-vm useradd[1323]: new user: name=koichi, UID=1002, GID=1002, home=/home/koichi, shell=/bin/bash, from=/dev/pts/1
+2025-09-23T17:09:46.339328+00:00 thm-vm usermod[1331]: add 'koichi' to group 'sudo'
+koichi
+
+Which file was changed to allow SSH key persistence?
+
+como estamos falando de chaves de SSH nada mais justo que fazer uma pesquisa dentro do authorized_keys 
+
+utilizando o comando ausearch dentro do path /.ssh/authorized_keys me resultou em um log
+a resposta está exatamente nesse log 
+type=PATH msg=audit(09/23/25 17:08:26.870:838) : item=0 name=/root/.ssh/authorized_keys inode=256095 dev=103:01 mode=file,600 ouid=root ogid=root rdev=00:00 nametype=NORMAL cap_fp=none cap_fi=none cap_fe=0 cap_fver=0 cap_frootid=0 
+type=CWD msg=audit(09/23/25 17:08:26.870:838) : cwd=/root 
+type=SYSCALL msg=audit(09/23/25 17:08:26.870:838) : arch=x86_64 syscall=openat success=yes exit=3 a0=AT_FDCWD a1=0x5a843f9e03d0 a2=O_WRONLY|O_CREAT|O_APPEND a3=0x1b6 items=1 ppid=1264 pid=1265 auid=ubuntu uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=pts1 ses=8 comm=bash exe=/usr/bin/bash subj=unconfined key=ssh 
