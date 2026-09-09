@@ -1,0 +1,154 @@
+# How many events were collected and ingested in the index main?
+
+Essa conclusão é relativamente fácil de pesquisar no Splunk. Como ele está querendo saber quantos eventos foram coletados e ingeridos no `index=main`, a nossa pesquisa vai ser exatamente essa.
+
+Vamos utilizar o filtro:
+
+```spl
+index=main
+```
+
+Logo abaixo da barra de pesquisa, vai aparecer o número de eventos encontrados, que foi:
+
+**12256 eventos**
+
+---
+
+# On one of the infected hosts, the adversary was successful in creating a backdoor user. What is the new username?
+
+A pesquisa aqui foi baseada no Event ID de criação de usuário, que normalmente é o `4720`.
+
+Então, procurei utilizando o filtro:
+
+```spl
+index=main EventID=4720
+```
+
+O resultado no Splunk foi apenas um evento, então ficou mais fácil localizar o campo `TargetUserName`, que apresentava o usuário:
+
+**A1berto**
+
+---
+
+# No mesmo host, uma chave de registro também foi atualizada referente ao novo usuário backdoor. Qual é o caminho completo dessa chave de registro?
+
+Para essa questão tive um pouco mais de dificuldade, então precisei fazer uma leve pesquisa sobre qual Event ID poderia registrar exatamente o que estávamos procurando.
+
+Encontrei uma pista: o Event ID `13` registra a criação ou modificação de valores no Registro.
+
+Então, decidi procurar dentro do `index=main` utilizando o Event ID `13` e o nome do usuário que encontramos anteriormente (`A1berto`) para tentar ser o mais assertivo possível.
+
+Log encontrado:
+
+```text
+TargetObject: HKLM\SAM\SAM\Domains\Account\Users\Names\A1berto\(Default)
+```
+
+Resposta:
+
+```text
+HKLM\SAM\SAM\Domains\Account\Users\Names\A1berto\
+```
+
+---
+
+# Examine the logs and identify the user that the adversary was trying to impersonate.
+
+Essa questão teve duas etapas.
+
+A primeira foi a parte da dedução. O atacante criou o usuário `A1berto` e, como o próprio enunciado diz que ele estava tentando imitar algum usuário, comecei a pensar em qual usuário poderia ser.
+
+Como sabemos que existem técnicas para disfarçar ou alterar caracteres para criar um usuário ou domínio que dê a impressão de ser um usuário ou domínio legítimo, deduzi que o atacante estava tentando imitar o usuário:
+
+**Alberto**
+
+Respondendo isso logo de cara, não tive problemas e acertei.
+
+Mas eu queria encontrar algo além da dedução que me desse uma base e não parecesse apenas um chute.
+
+Então, tentei analisar novamente o Event ID `4720`, por desencargo de consciência, mas não encontrei nada. Isso era esperado, pois aquele evento estava relacionado à criação do usuário `A1berto`.
+
+Voltei para o `index=main` e fui olhar o filtro de usuários. Lá estava o que eu precisava: a existência do usuário `Alberto`.
+
+No filtro, aparecia:
+
+```text
+Cybertees\Alberto
+```
+
+Isso confirmou a minha dedução de que o atacante provavelmente estava tentando se passar pelo usuário `Alberto`.
+
+---
+
+# What is the command used to add a backdoor user from a remote computer?
+
+Esse foi o mais chatinho até agora.
+
+Meu raciocínio foi procurar esse comando no `index=main` utilizando o usuário criado, `A1berto`, como ponto de partida.
+
+Procurei por processos criados e estava buscando alguma `CommandLine` que chamasse alguma workstation.
+
+Foi então que encontrei:
+
+```text
+"C:\windows\System32\Wbem\WMIC.exe" /node:WORKSTATION6 process call create "net user /add A1berto paw0rd1"
+```
+
+Esse comando é executado remotamente e utilizado para criar uma nova conta de usuário local em uma máquina de destino, que nesse caso era a `WORKSTATION6`.
+
+Assim que encontrei o comando, pesquisei no Google para entender melhor o que ele fazia. Olhando por cima e com base no meu conhecimento, já parecia que estava sendo criado algum processo relacionado à criação de um usuário.
+
+Investigando melhor, descobri outra forma de procurar essa resposta que seria muito mais fácil.
+
+Nos filtros existe um campo chamado `CommandLine`, e ele já contém exatamente o valor que eu estava procurando.
+
+Bom, é mais uma dica para futuras investigações.
+
+---
+
+# What is the full URL?
+
+Essa foi a questão que mais me desafiou, mas vamos lá.
+
+O filtro que utilizei foi:
+
+```spl
+index="main" EventID="4104" OR EventID="4103"
+| rex field=ContextInfo "Host Application = (?<Command>[^\r\n]+)"
+| table Command
+| dedup Command
+```
+
+A base que utilizei foi a mesma do enunciado anterior, pois eu sabia que a informação estaria nos logs dos Event IDs `4103` e `4104` e que deveria procurar no campo `Host Application`.
+
+No entanto, não estava conseguindo montar o filtro corretamente.
+
+Com base em algumas pesquisas no Google, consegui encontrar o filtro correto no Splunk. Ele me levou diretamente para a resposta.
+
+Utilizando o CyberChef, decodifiquei o conteúdo utilizando `From Base64`.
+
+Depois, com o resultado obtido, consegui decodificar uma segunda vez e utilizei `Defang URL`.
+
+Resposta:
+
+```text
+hxxp[://]10[.]10[.]10[.]5/news[.]php
+```
+
+---
+
+# Considerações finais
+
+Foi uma sala gratificante, pois consegui resolver inúmeras coisas apenas batendo a cabeça e tentando diferentes formas de investigação.
+
+Ao mesmo tempo, foi a sala que me mostrou que preciso estudar mais Splunk.
+
+Tenho uma noção da ferramenta, o que me facilitou até mesmo durante as pesquisas, pois eu já sabia, em muitos casos, qual filtro deveria procurar. No entanto, ainda preciso entender melhor como estruturar as pesquisas.
+
+Essa sala também me mostrou que não preciso memorizar tudo, até porque isso ficaria mil vezes mais difícil. Porém, se eu souber que determinado evento, campo ou informação existe e conseguir ser assertivo durante a pesquisa, o trabalho diminui bastante.
+
+Com uma boa noção dos Event IDs, ficou mais fácil procurar exatamente o que eu queria. Utilizando os Event IDs, consegui localizar aproximadamente 80% das respostas.
+
+Teve apenas uma questão na qual não gostei do meu desempenho e espero melhorar daqui a alguns meses, caso eu volte a tentar solucionar algum problema semelhante. Foi justamente a última questão.
+
+Tive certa dificuldade porque me faltou conhecimento ou experiência para formular melhor o filtro. Porém, acredito que essa dificuldade também tenha sido importante, pois mostrou exatamente um dos pontos que preciso melhorar nos meus estudos.
