@@ -1,0 +1,169 @@
+# Análise do arquivo windows-update.exe
+
+Neste documento, vou destrinchar tudo o que fiz para encontrar as respostas de cada pergunta.
+
+É importante lembrar que existem ferramentas que facilitam bastante cada uma dessas análises. Porém, algumas respostas também podem ser encontradas utilizando comandos do próprio Windows. Foi exatamente isso que tentei fazer: encontrar cada resposta utilizando o CMD e o PowerShell, recorrendo a ferramentas externas quando necessário.
+
+## 1. Arquitetura do arquivo
+
+**Question: What is the architecture of the binary file windows-update.exe?**
+
+Primeiramente, tentei utilizar o `Get-Content` no PowerShell, mas percebi que o resultado era gigantesco e não seria uma boa maneira de encontrar a informação que eu procurava.
+
+Então, pesquisei uma alternativa e encontrei o Sigcheck, uma ferramenta que permite obter informações sobre arquivos executáveis.
+
+Comando utilizado:
+
+cmd
+sigcheck.exe C:\caminho\para\seu_arquivo.exe
+
+
+Resposta encontrada:
+
+text
+64-bit
+
+
+## 2. Hash SHA-256 do arquivo
+
+**Question: What is the hash (sha-256) of the file windows-update.exe?**
+
+Essa resposta também foi tranquila de encontrar. Utilizando o `certutil`, consegui obter o resultado rapidamente, sem maiores dificuldades.
+
+Comando utilizado:
+
+cmd
+certutil -hashfile "caminho\do\seu_arquivo.exe" SHA256
+
+
+Resposta encontrada:
+
+text
+b2a88de3e3bcfae4a4b38fa36e884c586b5cb2c2c283e71fba59efdb9ea64bfc
+
+
+## 3. Identificação de uma URL dentro do arquivo
+
+**Question: Identify the URL within the file to use it as an IOC.**
+
+No CMD, podemos utilizar o `findstr` para filtrar textos, tendo uma finalidade semelhante à do `grep` no Linux.
+
+Comando utilizado:
+
+cmd
+findstr /s /i "http" nome_do_arquivo.exe
+
+
+Resposta encontrada:
+
+text
+http://tryhatme.com/update/security-update.exe
+
+
+## 4. Identificação de um domínio suspeito
+
+**Question: With the URL identified, can you spot a domain that can be used as an IOC?**
+
+Aqui podemos utilizar a mesma ideia da questão anterior, procurando por outros termos que ajudem a identificar possíveis domínios.
+
+Comando utilizado:
+
+cmd
+findstr /s /i "http .com .net .org" nome_do_arquivo.exe
+
+
+A ideia foi ampliar a busca para encontrar informações relacionadas a endereços e domínios dentro do arquivo.
+
+## 5. Decodificação da flag do domínio suspeito
+
+**Question: Input the decoded flag from the suspicious domain.**
+
+Nessa questão, utilizei o `strings` em conjunto com o `findstr`, criando um filtro dentro do PowerShell para localizar informações relacionadas ao domínio `tryhatme`.
+
+Comando utilizado:
+
+powershell
+strings .\windows-update.exe | findstr "tryhatme"
+
+
+O resultado encontrado foi uma sequência codificada em Base64:
+
+text
+VEhNe3lvdV9nMHRfc29tZV9JT0NzX2ZyaWVuZH0=
+
+
+Depois, acessei o CyberChef e utilizei a operação **From Base64** para decodificar o conteúdo.
+
+Resposta encontrada:
+
+text
+THM{you_g0t_some_IOCs_friend}
+
+
+## 6. Identificação da biblioteca relacionada à comunicação por sockets
+
+**Question: What library related to socket communication is loaded by the binary?**
+
+Aqui foi uma das questões em que precisei utilizar uma ferramenta especializada: o PEStudio.
+
+Importei o arquivo `.exe` para o programa e segui este caminho:
+
+text
+Libraries (flag > 3)
+    └── Windows Socket Library
+
+
+A resposta encontrada foi:
+
+text
+WS2_32.dll
+
+
+## 7. Identificação da URL maliciosa no alerta do PowerShell
+
+**Question: Can you identify the malicious URL from the trigger by the process powershell.exe?**
+
+Nessa questão, utilizei novamente o CyberChef.
+
+Encontrei a seguinte sequência codificada:
+
+text
+aHR0cHM6Ly90cnloYXRtZS5jb20vZGV2L21haW4uZXhl
+
+
+Acessei o CyberChef e utilizei a operação **From Base64**.
+
+Resposta encontrada:
+
+text
+https://tryhatme.com/dev/main.exe
+
+
+## 8. Identificação da URL maliciosa no alerta do Chrome
+
+**Question: Can you identify the malicious URL from the alert triggered by chrome.exe?**
+
+Aqui encontrei uma sequência numérica utilizada no campo de busca (`fetch`).
+
+text
+104,116,116,112,115,58,47,47,114,101,97,108,108,121,115,101,99,117,114,101,117,112,100,97,116,101,46,116,114,121,104,97,116,109,101,46,99,111,109,47,117,112,100,97,116,101,46,101,120,101
+
+
+Copiei a sequência para o CyberChef e utilizei a operação **From Decimal** para converter os valores em texto.
+
+Resposta encontrada:
+
+text
+https://reallysecureupdate.tryhatme.com/update.exe
+
+
+## 9. Identificação do arquivo salvo pelo Chrome
+
+**Question: What's the name of the file saved in the alert triggered by chrome.exe?**
+
+Nessa última questão, não precisei utilizar comandos ou ferramentas externas. Dentro do próprio exercício havia uma parte que mostrava qual arquivo havia sido salvo.
+
+Resposta encontrada:
+
+text
+test.txt
